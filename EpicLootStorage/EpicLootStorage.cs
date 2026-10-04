@@ -25,9 +25,11 @@ namespace EpicLootStorage
         private const string TestPieceBase = "piece_chest_wood";   // [unverified] vanilla wood chest; Jotunn logs an error if wrong
         private const string TestPieceToken = "piece_els_testduststore";
 
-        public static CustomLocalization Localization = LocalizationManager.Instance.GetLocalization();
+        // Store size defaults, used when a config file is first created.
+        private const int DefaultColumns = 5;
+        private const int DefaultRows = 4;
 
-        private Harmony harmony;
+        public static CustomLocalization Localization = LocalizationManager.Instance.GetLocalization();
 
         private void Awake()
         {
@@ -41,32 +43,35 @@ namespace EpicLootStorage
 
             // Option 3+2 for now: Dust only, locked to the first rarity. One flag to change.
             StorageRegistry.DefinePiece(TestPieceName, new StorageRule("Dust", lockToFirstItem: true));
+            StoreSizes.Bind(Config, TestPieceName, "Dust store (test)", DefaultColumns, DefaultRows);
 
-            ApplyLockPatches();
+            ApplyPatches(typeof(InventoryLockPatches), PluginGUID,
+                "Item lock", "storage pieces accept anything");
+            ApplyPatches(typeof(StoreSizePatches), PluginGUID + ".sizes",
+                "Store sizes", "stores use their default size and ignore the config");
 
             PrefabManager.OnVanillaPrefabsAvailable += AddPieces;
             ItemManager.OnItemsRegistered += LogEpicLootPrefabs;
         }
 
         /// <summary>
-        /// All or nothing: with only some patches applied (say AddItem but not the load bypass), saved
-        /// contents could be refused on load and lost. If any patch fails, remove them all and run as plain chests.
+        /// Each patch set is all or nothing, under its own Harmony ID so one failing set can be removed
+        /// without the other. A partial item lock (say AddItem but not the load bypass) could refuse saved
+        /// contents on load and lose them; a partial size set could hide items in columns cut off by the config.
         /// </summary>
-        private void ApplyLockPatches()
+        private static void ApplyPatches(Type patchSet, string harmonyId, string feature, string fallback)
         {
-            harmony = new Harmony(PluginGUID);
-            var patchClasses = typeof(InventoryLockPatches).GetNestedTypes()
-                .Where(t => t.IsDefined(typeof(HarmonyPatch), false));
+            var harmony = new Harmony(harmonyId);
             try
             {
-                foreach (Type type in patchClasses)
+                foreach (Type type in patchSet.GetNestedTypes().Where(t => t.IsDefined(typeof(HarmonyPatch), false)))
                     harmony.CreateClassProcessor(type).Patch();
-                Jotunn.Logger.LogInfo("[EpicLootStorage] Item lock patches applied.");
+                Jotunn.Logger.LogInfo($"[EpicLootStorage] {feature} patches applied.");
             }
             catch (Exception ex)
             {
                 harmony.UnpatchSelf();
-                Jotunn.Logger.LogError($"[EpicLootStorage] Item lock could not be applied on this game build, so storage pieces accept anything: {ex.Message}");
+                Jotunn.Logger.LogError($"[EpicLootStorage] {feature} could not be applied on this game build, so {fallback}: {ex.Message}");
             }
         }
 
@@ -91,8 +96,8 @@ namespace EpicLootStorage
 
             Container container = piece.PiecePrefab.GetComponent<Container>();
             container.m_name = "$" + TestPieceToken;
-            container.m_width = 8;
-            container.m_height = 4;
+            container.m_width = DefaultColumns;   // overridden from the config in Container.Awake
+            container.m_height = DefaultRows;
 
             PieceManager.Instance.AddPiece(piece);
         }

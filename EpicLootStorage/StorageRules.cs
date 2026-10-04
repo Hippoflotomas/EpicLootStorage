@@ -67,6 +67,8 @@ namespace EpicLootStorage
         private static readonly Dictionary<string, StorageRule> RulesByPiece = new Dictionary<string, StorageRule>();
         private static readonly ConditionalWeakTable<Inventory, StorageRule> RulesByInventory = new ConditionalWeakTable<Inventory, StorageRule>();
 
+        private static readonly HashSet<Container> Loaded = new HashSet<Container>();
+
         public static void DefinePiece(string pieceName, StorageRule rule) => RulesByPiece[pieceName] = rule;
 
         public static void TryRegister(Container container)
@@ -81,6 +83,16 @@ namespace EpicLootStorage
 
             RulesByInventory.Remove(inventory);
             RulesByInventory.Add(inventory, rule);
+            Loaded.Add(container);
+        }
+
+        /// <summary>Our stores currently in the loaded world. Destroyed ones are dropped on each call.</summary>
+        public static Container[] LoadedContainers()
+        {
+            Loaded.RemoveWhere(c => !c);
+            var result = new Container[Loaded.Count];
+            Loaded.CopyTo(result);
+            return result;
         }
 
         public static StorageRule RuleFor(Inventory inventory)
@@ -90,7 +102,7 @@ namespace EpicLootStorage
             return null;
         }
 
-        private static string PrefabName(GameObject go)
+        internal static string PrefabName(GameObject go)
         {
             string name = go.name;
             int clone = name.IndexOf("(Clone)", System.StringComparison.Ordinal);
