@@ -7,7 +7,6 @@ using Jotunn.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using UnityEngine;
 
 namespace EpicLootStorage
 {
@@ -20,14 +19,18 @@ namespace EpicLootStorage
         public const string PluginName = "EpicLootStorage";
         public const string PluginVersion = "0.0.1";
 
-        // Build step 3: one plain cloned container to test the item lock. No kitbash yet.
-        public const string TestPieceName = "ELS_TestDustStore";
-        private const string TestPieceBase = "piece_chest_wood";   // [unverified] vanilla wood chest; Jotunn logs an error if wrong
-        private const string TestPieceToken = "piece_els_testduststore";
+        // Option 3+2: each store takes one family, then locks to the first rarity put in.
+        private const bool LockToFirstItem = true;
 
         // Store size defaults, used when a config file is first created.
         private const int DefaultColumns = 5;
         private const int DefaultRows = 4;
+
+        // TEMPORARY: the plain test chest from step 3, kept so test worlds don't lose the one already built.
+        // Empty it in-game, then delete this block and its registration.
+        private const string TestPieceName = "ELS_TestDustStore";
+        private const string TestPieceBase = "piece_chest_wood";
+        private const string TestPieceToken = "piece_els_testduststore";
 
         public static CustomLocalization Localization = LocalizationManager.Instance.GetLocalization();
 
@@ -35,20 +38,23 @@ namespace EpicLootStorage
         {
             Jotunn.Logger.LogInfo("EpicLootStorage has landed");
 
+            StorePieces.Define(Config, Localization, LockToFirstItem, DefaultColumns, DefaultRows);
+            StoreIcons.Hook();
+
             Localization.AddTranslation("English", new Dictionary<string, string>
             {
                 { TestPieceToken, "Dust store (test)" },
-                { TestPieceToken + "_description", "Holds Epic Loot Dust. Locks to the first rarity put in." },
+                { TestPieceToken + "_description", "Old test store. Empty it; it will be removed." },
             });
-
-            // Option 3+2 for now: Dust only, locked to the first rarity. One flag to change.
-            StorageRegistry.DefinePiece(TestPieceName, new StorageRule("Dust", lockToFirstItem: true));
+            StorageRegistry.DefinePiece(TestPieceName, new StorageRule("Dust", LockToFirstItem));
             StoreSizes.Bind(Config, TestPieceName, "Dust store (test)", DefaultColumns, DefaultRows);
 
             ApplyPatches(typeof(InventoryLockPatches), PluginGUID,
                 "Item lock", "storage pieces accept anything");
             ApplyPatches(typeof(StoreSizePatches), PluginGUID + ".sizes",
                 "Store sizes", "stores use their default size and ignore the config");
+            ApplyPatches(typeof(StoreDisplayPatches), PluginGUID + ".display",
+                "Hover text", "store hover text doesn't show the contents");
 
             PrefabManager.OnVanillaPrefabsAvailable += AddPieces;
             ItemManager.OnItemsRegistered += LogEpicLootPrefabs;
@@ -79,7 +85,9 @@ namespace EpicLootStorage
         {
             PrefabManager.OnVanillaPrefabsAvailable -= AddPieces;
 
-            var piece = new CustomPiece(TestPieceName, TestPieceBase, new PieceConfig
+            StorePieces.Register(DefaultColumns, DefaultRows);
+
+            var test = new CustomPiece(TestPieceName, TestPieceBase, new PieceConfig
             {
                 Name = "$" + TestPieceToken,
                 Description = "$" + TestPieceToken + "_description",
@@ -87,28 +95,20 @@ namespace EpicLootStorage
                 Category = PieceCategories.Furniture,
                 Requirements = new[] { new RequirementConfig("Wood", 2, 0, true) },
             });
-
-            if (piece.PiecePrefab == null)
+            if (test.PiecePrefab != null)
             {
-                Jotunn.Logger.LogError($"[EpicLootStorage] Base prefab '{TestPieceBase}' not found; test store not added.");
-                return;
+                Container container = test.PiecePrefab.GetComponent<Container>();
+                container.m_name = "$" + TestPieceToken;
+                PieceManager.Instance.AddPiece(test);
             }
-
-            Container container = piece.PiecePrefab.GetComponent<Container>();
-            container.m_name = "$" + TestPieceToken;
-            container.m_width = DefaultColumns;   // overridden from the config in Container.Awake
-            container.m_height = DefaultRows;
-
-            PieceManager.Instance.AddPiece(piece);
         }
 
-        /// <summary>
-        /// Build step 2 for free: report which of the hardcoded Epic Loot names exist in this install.
-        /// </summary>
+        /// <summary>Report which of the hardcoded Epic Loot names exist in this install (once per session).</summary>
         private static void LogEpicLootPrefabs()
         {
             if (!ObjectDB.instance)
                 return;
+            ItemManager.OnItemsRegistered -= LogEpicLootPrefabs;
 
             foreach (string family in EpicLootNames.Families)
             {
@@ -117,9 +117,6 @@ namespace EpicLootStorage
                 Jotunn.Logger.LogInfo($"[EpicLootStorage] {family}: found [{string.Join(", ", found)}]" +
                                       (missing.Count > 0 ? $" missing [{string.Join(", ", missing)}]" : ""));
             }
-
-            int shardStones = ObjectDB.instance.m_items.Count(go => go != null && go.name.EndsWith("_ShardStone"));
-            Jotunn.Logger.LogInfo($"[EpicLootStorage] Socketable shardstones (<Color>_<Rarity>_ShardStone): {shardStones} prefabs.");
         }
     }
 }
