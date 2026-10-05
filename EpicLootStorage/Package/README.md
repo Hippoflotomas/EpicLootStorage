@@ -1,8 +1,8 @@
 # Epic Loot Storage
 
-Bulk storage for [Epic Loot](https://thunderstore.io/c/valheim/p/RandyKnapp/EpicLoot/)'s crafting materials. Five buildable stores, one per material family, each built from vanilla Valheim parts so it fits in any base.
+Bulk storage for [Epic Loot](https://thunderstore.io/c/valheim/p/RandyKnapp/EpicLoot/)'s crafting materials. **Requires Epic Loot.** Five buildable stores, one per material family, each built from vanilla Valheim parts so it fits in any base.
 
-| Store | Holds | Built from |
+| Store | Holds | Looks Like |
 |---|---|---|
 | **Essence Keg** | Essence | A small fermenter, with Essence bottles at its foot |
 | **Dust Sack** | Dust | A big flour sack, with Dust pouches beside it |
@@ -41,7 +41,7 @@ Changes apply to stores already built. A store never shrinks so far that it hide
 
 - [BepInExPack Valheim](https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/)
 - [Jötunn](https://thunderstore.io/c/valheim/p/ValheimModding/Jotunn/)
-- [Epic Loot](https://thunderstore.io/c/valheim/p/RandyKnapp/EpicLoot/). This mod loads without it, but there's nothing to store.
+- **[Epic Loot](https://thunderstore.io/c/valheim/p/RandyKnapp/EpicLoot/) (required).** These stores hold Epic Loot's materials, so you need Epic Loot installed. Mod managers install it for you.
 
 Everyone on a server needs this mod, including the server itself.
 
