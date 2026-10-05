@@ -41,13 +41,15 @@ namespace EpicLootStorage
         }
 
         /// <summary>
-        /// Copy a vanilla item's model (every child that renders, plus the root's own mesh if it has one), scale it,
-        /// and seat it on the ground centred on the store. Items sit on the "item" layer; the copy takes the store's.
+        /// Copy a vanilla item's model (every child that renders, plus the root's own mesh if it has one), turn it by
+        /// <paramref name="yaw"/>, scale it per axis in the store's own axes, and seat it on the ground centred on the
+        /// store. Items sit on the "item" layer; the copy takes the store's.
         /// </summary>
-        public static void CopyItemModel(GameObject item, Transform root, Transform parent, float scale)
+        public static void CopyItemModel(GameObject item, Transform root, Transform parent, float yaw, Vector3 scale)
         {
             var model = new GameObject("model");
             model.transform.SetParent(parent, false);
+            SetRootSpace(model.transform, root, Vector3.zero, Quaternion.identity, Vector3.one);   // axes = store axes
 
             MeshFilter rootFilter = item.GetComponent<MeshFilter>();
             MeshRenderer rootRenderer = item.GetComponent<MeshRenderer>();
@@ -63,13 +65,59 @@ namespace EpicLootStorage
                     CopyTransform(child, item.transform, root, model.transform, keepColliders: false);
 
             SetLayer(model, root.gameObject.layer);
-            model.transform.localScale *= scale;
 
-            // Seat: bottom on y = 0, centred on the store's origin.
+            // Turn and scale the whole assembly (children move with it), then seat it.
+            SetRootSpace(model.transform, root, Vector3.zero, Quaternion.Euler(0f, yaw, 0f), scale);
             Bounds b = MeshBounds(root, model.transform);
-            Vector3 shift = new Vector3(-b.center.x, -b.min.y, -b.center.z);
-            Matrix4x4 rootToParent = (root.worldToLocalMatrix * parent.localToWorldMatrix).inverse;
-            model.transform.localPosition += rootToParent.MultiplyVector(shift);
+            SetRootSpace(model.transform, root, new Vector3(-b.center.x, -b.min.y, -b.center.z), Quaternion.Euler(0f, yaw, 0f), scale);
+        }
+
+        /// <summary>
+        /// How far forward (+Z, store root space) the store's surface reaches inside an x/y window - so things can be
+        /// placed against a curved body rather than its bounding box. Reads mesh vertices; meshes the game doesn't let
+        /// us read are skipped. If no vertex falls in the window it widens to the full height, then falls back to
+        /// <paramref name="fallback"/> (normally the bounds' front face).
+        /// </summary>
+        public static float FrontSurfaceZ(Transform root, Transform under, float xMin, float xMax, float yMin, float yMax, float fallback) =>
+            FrontSurfaceZ(root, under, xMin, xMax, yMin, yMax, fallback, out _);
+
+        /// <param name="exact">True only if vertices inside the window were found (not widened, not the fallback).</param>
+        public static float FrontSurfaceZ(Transform root, Transform under, float xMin, float xMax, float yMin, float yMax, float fallback, out bool exact)
+        {
+            const float slack = 0.03f;   // vertices sitting exactly on the window's edge (the base ring at y = 0) still count
+            float z = MaxZ(root, under, xMin - slack, xMax + slack, yMin - slack, yMax + slack);
+            exact = !float.IsNegativeInfinity(z);
+            if (!exact)
+                z = MaxZ(root, under, xMin, xMax, float.NegativeInfinity, float.PositiveInfinity);
+            return float.IsNegativeInfinity(z) ? fallback : z;
+        }
+
+        private static float MaxZ(Transform root, Transform under, float xMin, float xMax, float yMin, float yMax)
+        {
+            float best = float.NegativeInfinity;
+            foreach (MeshFilter filter in under.GetComponentsInChildren<MeshFilter>(true))
+            {
+                Mesh mesh = filter.sharedMesh;
+                if (mesh == null || !mesh.isReadable || IsDecoration(filter.transform, root))
+                    continue;
+                Matrix4x4 toRoot = root.worldToLocalMatrix * filter.transform.localToWorldMatrix;
+                foreach (Vector3 v in mesh.vertices)
+                {
+                    Vector3 p = toRoot.MultiplyPoint3x4(v);
+                    if (p.x >= xMin && p.x <= xMax && p.y >= yMin && p.y <= yMax && p.z > best)
+                        best = p.z;
+                }
+            }
+            return best;
+        }
+
+        /// <summary>Props and stickers are ours, not part of the body.</summary>
+        public static bool IsDecoration(Transform t, Transform stop)
+        {
+            for (; t != null && t != stop; t = t.parent)
+                if (t.name.StartsWith(StoreIndicator.PropPrefix) || t.name == StoreIndicator.StickerName)
+                    return true;
+            return false;
         }
 
         /// <summary>A plain box collider around the store's looks, on the store's layer.</summary>
@@ -205,6 +253,8 @@ namespace EpicLootStorage
         public readonly float Tilt;
         public readonly float Size;       // longest side, in the store's unscaled units (metres before any root scale)
         public readonly float? FrontGap;  // set: stands on the ground in front (+Z) of the store, this far from it
+        public readonly bool Against;     // gap measured from the body's real surface, not its bounding box
+        public readonly float FallbackGap; // Against only: gap from the bounding box when the surface can't be read
 
         public PropSpot(string itemPrefab, float x, float y, float z, float yaw, float size, float tilt = 0f)
         {
@@ -214,21 +264,33 @@ namespace EpicLootStorage
             Tilt = tilt;
             Size = size;
             FrontGap = null;
+            Against = false;
+            FallbackGap = 0f;
         }
 
-        private PropSpot(string itemPrefab, float x, float gap, float yaw, float size)
+        private PropSpot(string itemPrefab, float x, float gap, float yaw, float size, bool against, float fallbackGap = 0f)
         {
+            FallbackGap = fallbackGap;
             ItemPrefab = itemPrefab;
             Anchor = new Vector3(x, 0f, 1f);
             Yaw = yaw;
             Tilt = 0f;
             Size = size;
             FrontGap = gap;
+            Against = against;
         }
 
         /// <summary>On the ground in front of the store. <paramref name="gap"/> in metres before root scale; negative tucks it under an overhang.</summary>
         public static PropSpot InFront(string itemPrefab, float x, float gap, float yaw, float size) =>
-            new PropSpot(itemPrefab, x, gap, yaw, size);
+            new PropSpot(itemPrefab, x, gap, yaw, size, against: false);
+
+        /// <summary>
+        /// On the ground in front, pushed up against the body: <paramref name="gap"/> is measured from the body's
+        /// actual surface at the prop's own height and width (curves and bulges included).
+        /// </summary>
+        /// <param name="fallbackGap">Used, from the bounding box, if the body's shape can't be read at the prop's height.</param>
+        public static PropSpot AgainstFront(string itemPrefab, float x, float gap, float yaw, float size, float fallbackGap) =>
+            new PropSpot(itemPrefab, x, gap, yaw, size, against: true, fallbackGap);
     }
 
     internal static class Props
@@ -267,8 +329,22 @@ namespace EpicLootStorage
             Kitbash.SetRootSpace(prop.transform, root, anchor, Quaternion.Euler(spot.Tilt, spot.Yaw, 0f), Vector3.one * scale);
             Bounds placed = Kitbash.MeshBounds(root, prop.transform);
             Vector3 shift = new Vector3(anchor.x - placed.center.x, anchor.y - placed.min.y, anchor.z - placed.center.z);
-            if (spot.FrontGap.HasValue)   // in front of the store: back face this far from its front face
-                shift.z = area.max.z + spot.FrontGap.Value - placed.min.z;
+            if (spot.FrontGap.HasValue)   // in front of the store: back face this far from its front
+            {
+                float front = area.max.z, gap = spot.FrontGap.Value;
+                if (spot.Against)
+                {
+                    float surface = Kitbash.FrontSurfaceZ(root, parent, placed.min.x + shift.x, placed.max.x + shift.x,
+                        area.min.y, area.min.y + placed.size.y, area.max.z, out bool exact);
+                    if (exact)
+                        front = surface;
+                    else
+                        gap = spot.FallbackGap;
+                    Jotunn.Logger.LogInfo($"[EpicLootStorage] {root.name}: {spot.ItemPrefab} placed against " +
+                                          (exact ? "the body's surface." : "the bounding box (shape not readable), using the fallback gap."));
+                }
+                shift.z = front + gap - placed.min.z;
+            }
             Kitbash.SetRootSpace(prop.transform, root, anchor + shift, Quaternion.Euler(spot.Tilt, spot.Yaw, 0f), Vector3.one * scale);
             return true;
         }
