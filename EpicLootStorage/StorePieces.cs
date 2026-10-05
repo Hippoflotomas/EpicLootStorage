@@ -81,7 +81,7 @@ namespace EpicLootStorage
                 PieceName = "ELS_RunestoneStore", Family = "Runestone", Token = "piece_els_runestonestore",
                 DisplayName = "Runestone Chest", Description = "A small open black metal chest that holds one kind of Runestone.",
                 BasePrefab = BlackMetalChest,
-                Cost = new[] { new RequirementConfig("BlackMetal", 4, 0, true), new RequirementConfig("FineWood", 5, 0, true) },
+                Cost = new[] { new RequirementConfig("Wood", 10, 0, true), new RequirementConfig("Stone", 4, 0, true), new RequirementConfig("Flint", 2, 0, true) },
                 Build = BuildRunestoneStore,
             },
         };

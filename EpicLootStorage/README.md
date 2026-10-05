@@ -26,7 +26,7 @@ All five are under **Hammer → Furniture** and need a **Workbench**.
 | Dust Sack | 6 Leather Scraps, 4 Wood |
 | Reagent Barrel | 10 Wood, 4 Resin |
 | Shard Bucket | 10 Wood, 2 Copper |
-| Runestone Chest | 4 Black Metal, 5 Fine Wood |
+| Runestone Chest | 10 Wood, 4 Stone, 2 Flint |
 
 ## Configuration
 
