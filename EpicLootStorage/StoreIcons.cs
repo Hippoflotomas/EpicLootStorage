@@ -38,7 +38,7 @@ namespace EpicLootStorage
                         Width = Size,
                         Height = Size,
                         Rotation = RenderManager.IsometricRotation,
-                        UseCache = false,   // looks are still changing; turn on for release
+                        UseCache = true,    // Jotunn re-renders when the mod version changes
                     });
                     if (render == null)
                     {

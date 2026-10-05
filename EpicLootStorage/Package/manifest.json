@@ -1,8 +1,8 @@
-﻿{
+{
   "name": "EpicLootStorage",
-  "description": "",
-  "version_number": "0.0.1",
-  "website_url": "",
+  "description": "Bulk storage for Epic Loot materials: five stores (Essence, Dust, Reagent, Shard, Runestone) that each hold one kind and show what's inside at a glance.",
+  "version_number": "1.0.0",
+  "website_url": "https://github.com/Hippoflotomas/EpicLootStorage",
   "dependencies": [
     "denikson-BepInExPack_Valheim-5.4.2333",
     "ValheimModding-Jotunn-2.30.2"

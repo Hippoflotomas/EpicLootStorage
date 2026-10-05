@@ -239,7 +239,7 @@ namespace EpicLootStorage
         private const string BarleyFlour = "BarleyFlour";
         private const float SackHeight = 1.5f;
         private const float SackGirth = SackHeight * 1.25f;
-        private const float DustBagGap = -0.55f;   // was -0.20 (about one bag-width short); more negative = closer
+        private const float DustBagGap = -0.35f;   // was -0.20 (about one bag-width short); more negative = closer
 
         private static void BuildDustStore(GameObject store)
         {

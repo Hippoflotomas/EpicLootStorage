@@ -1,58 +1,63 @@
-# JötunnModStub
+# Epic Loot Storage
 
-A Valheim mod stub project using [Jötunn](https://github.com/Valheim-Modding/Jotunn) including build tools and a basic Unity project stub.
-There is no actual plugin content included, just a minimum plugin class. 
+Bulk storage for [Epic Loot](https://thunderstore.io/c/valheim/p/RandyKnapp/EpicLoot/)'s crafting materials. Five buildable stores, one per material family, each built from vanilla Valheim parts so it fits in any base.
 
-#  Setup Guide
+| Store | Holds | Built from |
+|---|---|---|
+| **Essence Keg** | Essence | A small fermenter, with Essence bottles at its foot |
+| **Dust Sack** | Dust | A big flour sack, with Dust pouches beside it |
+| **Reagent Barrel** | Reagent | A sealed barrel, with Reagent jugs at its base |
+| **Shard Bucket** | Shards | A forge cooling bucket, heaped over the rim with crystals |
+| **Runestone Chest** | Runestones | A small open black metal chest, runestones standing inside |
 
-Please see [Jötunn Docs](https://valheim-modding.github.io/Jotunn/guides/overview.html) detailed documentation and setup.
+## How it works
 
-### Post Build automations
+- **One kind per store.** Each store takes only its own family, then locks to the first rarity you put in. A Dust Sack holding Rare Dust takes only Rare Dust until you empty it.
+- **See what's inside at a glance.** A filled store wears a sticker of the item it holds, and its props take on that rarity's colour. The Dust Sack takes the colour too. Empty stores go back to their plain look.
+- **Hover for details.** Looking at a store shows what it holds and how many, for example *Rare Dust x340*.
+- **Nothing gets lost.** Items a store won't accept stay where they were, whether you drag them, swap them or use "place stacks".
+- **Rarity colours follow Epic Loot.** If you've recoloured rarities in Epic Loot's config, the stores use your colours.
 
-Included in this repo is a PowerShell script `publish.ps1`.
-The script is referenced in the project file as a post-build event.
-Depending on the chosen configuration in Visual Studio the script executes the following actions.
+All five are under **Hammer → Furniture** and need a **Workbench**.
 
-### Building Debug
+| Store | Cost |
+|---|---|
+| Essence Keg | 10 Fine Wood, 2 Bronze |
+| Dust Sack | 6 Leather Scraps, 4 Wood |
+| Reagent Barrel | 10 Wood, 4 Resin |
+| Shard Bucket | 10 Wood, 2 Copper |
+| Runestone Chest | 4 Black Metal, 5 Fine Wood |
 
-The compiled dll and a dll.mdb debug file are copied to `<ValheimDir>\BepInEx\plugins` (or the path set in MOD_DEPLOYPATH).
+## Configuration
 
-### Building Release
+`BepInEx/config/com.hippotech.epiclootstorage.cfg` has one section per store, with:
 
-A compressed file with the binaries is created in `<JotunnModStub>\Packages`ready for upload to ThunderStore.
-Dont forget to include your information in the manifest.json and to change the project's readme file.
+- **Columns**: 1 to 8 (default 5)
+- **Rows**: 1 to 20 (default 4)
 
-## Developing Assets with Unity
+Changes apply to stores already built. A store never shrinks so far that it hides items already inside. On a server, the server's values are used for everyone.
 
-New Assets can be created with Unity and imported into Valheim using the mod.
-A Unity project is included in this repository under `<JotunnModStub>\JotunnModUnity`.
+## Requirements
 
-### Unity Editor Setup
+- [BepInExPack Valheim](https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/)
+- [Jötunn](https://thunderstore.io/c/valheim/p/ValheimModding/Jotunn/)
+- [Epic Loot](https://thunderstore.io/c/valheim/p/RandyKnapp/EpicLoot/). This mod loads without it, but there's nothing to store.
 
-1. [Download](https://public-cdn.cloud.unity3d.com/hub/prod/UnityHubSetup.exe) UnityHub directly from Unity or install it with the Visual Studio Installer via `Individual Components` -> `Visual Studio Tools for Unity`
-2. You will need an Unity account to register your PC and get a free licence. Create the account, login with it in Unity Hub and get your licence via `Settings` -> `Licence Management`
-3. Install Unity Editor version 2022.3.17f
-4. Compile the project. This copies all assemblies into `<JotunnModStub>\JotunnModUnity\Assets\Assemblies`. Don't open Unity yet before this step, it will remove assembly references.
-5. **Warning:** These assembly files are copyrighted material and you can theoretically get into trouble when you distribute them in your github repository. To avoid that there is a .gitignore file in the Unity project folder. Keep that when you clone or copy this repository
-6. Open Unity Hub and add the JotunnModUnity project
-7. Open the project in Unity
-8. Install the `AssetBundle Browser` package in the Unity Editor via `Window`-> `Package Manager` for easy bundle creation
+Everyone on a server needs this mod, including the server itself.
 
-## Debugging
+## Installation
 
-See the Wiki page [Debugging Plugins via IDE](https://github.com/Valheim-Modding/Wiki/wiki/Debugging-Plugins-via-IDE) for more information
+Use a mod manager such as r2modman, or copy `EpicLootStorage.dll` into `BepInEx/plugins`.
 
-## Actions after a game update
+## Source and issues
 
-When Valheim updates it is likely that parts of the assembly files change.
-If this is the case, the references to the assembly files must be renewed in Visual Studio and Unity.
+https://github.com/Hippoflotomas/EpicLootStorage
 
-### Prebuild actions
+## Building from source
 
-1. There is a file called DoPrebuild.props included in the solution. When you set its only value to true, Jötunn will automatically generate publicized assemblies for you. Otherwise you have to do this step manually.
+Visual Studio 2022 with the .NET Framework 4.8 targeting pack. Open `EpicLootStorage.sln` and build; Jötunn finds your Valheim install and generates the publicized assemblies on the first build. If the first build shows reference errors, close the solution and reopen it, then build again.
 
-### Unity actions
+- **Debug** copies the DLL into `BepInEx/plugins`.
+- **Release** also zips the Thunderstore package (from `EpicLootStorage/Package`) next to the DLL.
 
-1. Copy all `assembly_*.dll` from `<ValheimDir>\valheim_Data\Managed` into `<JotunnModStub>\JotunnModUnity\Assets\Assemblies`. <br />
-  **Do this directly in the filesystem - don't import the dlls in Unity**.
-2. Go to Unity Editor and press `Ctrl+R`. This reloads all files from the filesystem and "re-imports" the copied dlls into the project.
+Built on the [JotunnModStub](https://github.com/Valheim-Modding/JotunnModStub) template.

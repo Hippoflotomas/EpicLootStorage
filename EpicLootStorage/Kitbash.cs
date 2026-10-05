@@ -340,7 +340,7 @@ namespace EpicLootStorage
                         front = surface;
                     else
                         gap = spot.FallbackGap;
-                    Jotunn.Logger.LogInfo($"[EpicLootStorage] {root.name}: {spot.ItemPrefab} placed against " +
+                    Jotunn.Logger.LogDebug($"[EpicLootStorage] {root.name}: {spot.ItemPrefab} placed against " +
                                           (exact ? "the body's surface." : "the bounding box (shape not readable), using the fallback gap."));
                 }
                 shift.z = front + gap - placed.min.z;

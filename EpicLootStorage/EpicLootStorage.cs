@@ -17,7 +17,7 @@ namespace EpicLootStorage
     {
         public const string PluginGUID = "com.hippotech.epiclootstorage";
         public const string PluginName = "EpicLootStorage";
-        public const string PluginVersion = "0.0.1";
+        public const string PluginVersion = "1.0.0";
 
         // Option 3+2: each store takes one family, then locks to the first rarity put in.
         private const bool LockToFirstItem = true;
@@ -25,12 +25,6 @@ namespace EpicLootStorage
         // Store size defaults, used when a config file is first created.
         private const int DefaultColumns = 5;
         private const int DefaultRows = 4;
-
-        // TEMPORARY: the plain test chest from step 3, kept so test worlds don't lose the one already built.
-        // Empty it in-game, then delete this block and its registration.
-        private const string TestPieceName = "ELS_TestDustStore";
-        private const string TestPieceBase = "piece_chest_wood";
-        private const string TestPieceToken = "piece_els_testduststore";
 
         public static CustomLocalization Localization = LocalizationManager.Instance.GetLocalization();
 
@@ -40,14 +34,6 @@ namespace EpicLootStorage
 
             StorePieces.Define(Config, Localization, LockToFirstItem, DefaultColumns, DefaultRows);
             StoreIcons.Hook();
-
-            Localization.AddTranslation("English", new Dictionary<string, string>
-            {
-                { TestPieceToken, "Dust store (test)" },
-                { TestPieceToken + "_description", "Old test store. Empty it; it will be removed." },
-            });
-            StorageRegistry.DefinePiece(TestPieceName, new StorageRule("Dust", LockToFirstItem));
-            StoreSizes.Bind(Config, TestPieceName, "Dust store (test)", DefaultColumns, DefaultRows);
 
             ApplyPatches(typeof(InventoryLockPatches), PluginGUID,
                 "Item lock", "storage pieces accept anything");
@@ -86,21 +72,6 @@ namespace EpicLootStorage
             PrefabManager.OnVanillaPrefabsAvailable -= AddPieces;
 
             StorePieces.Register(DefaultColumns, DefaultRows);
-
-            var test = new CustomPiece(TestPieceName, TestPieceBase, new PieceConfig
-            {
-                Name = "$" + TestPieceToken,
-                Description = "$" + TestPieceToken + "_description",
-                PieceTable = PieceTables.Hammer,
-                Category = PieceCategories.Furniture,
-                Requirements = new[] { new RequirementConfig("Wood", 2, 0, true) },
-            });
-            if (test.PiecePrefab != null)
-            {
-                Container container = test.PiecePrefab.GetComponent<Container>();
-                container.m_name = "$" + TestPieceToken;
-                PieceManager.Instance.AddPiece(test);
-            }
         }
 
         /// <summary>Report which of the hardcoded Epic Loot names exist in this install (once per session).</summary>
